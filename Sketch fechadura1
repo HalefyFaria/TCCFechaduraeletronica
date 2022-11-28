@@ -19,9 +19,6 @@
 // DEFINIÇÕES
 #define pinTrava 12    //Trava Eletrica no pino 12
 #define buzer 22       //Buzer no pino 22
-#define ledGreen 24    //Led verde no pino 2
-#define ledRed 26      //Led vermelho no pino 3
-#define button 13      //Botão de cadastro no pino 4
 #define SDA_RFID 53    //SDA do RFID no pino 10
 #define RST_RFID 49    //Reset do RFID no pino 9
 #define mySerial Serial1
@@ -32,16 +29,15 @@ byte zero = 0x00;
 
 // INSTANCIANDO OBJETOS
 
-Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);  //instancia objeto finger
 
 // DECLARAÇÃO DAS VARIÁVEIS E FUNCOES
 
-uint8_t numID = 1;
-bool gravar = false;                   // variável gravar do tipo booleana iniciada como falsa
+uint8_t numID = 1;                     // variável numID do tipo uint8_t iniciada = 1
 
 uint8_t modoGravacaoID(uint8_t IDgravar);  
 
-MFRC522 mfrc522(SDA_RFID, RST_RFID);   //Inicializa o módulo RFID
+MFRC522 mfrc522(SDA_RFID, RST_RFID);   //Instanciação do objeto para o uso do leitor RFID
 MemoryLib memory(1, 2);                //Inicializa a biblioteca MemoryLib. Parametros: memorySize=1 (1Kb) / type=2 (LONG)
 
 int maxCards = memory.lastAddress / 2; //Cada cartão ocupa duas posições na memória. Para 1Kb será permitido o cadastro de 101 cartões
@@ -55,8 +51,8 @@ unsigned long s2no = 0;                // Variável s2no do tipo unsigned long i
 unsigned long sma = 0;                 // Variável sma do tipo unsigned long iniciada = a 0
 unsigned long s2ma = 0;                // Variável s2ma do tipo unsigned long iniciada = a 0
 unsigned long s2mad = 0;               // Variável s2mad do tipo unsigned long iniciada = a 0
-const byte qtdLinhas = 4;
-const byte qtdColunas = 4;
+const byte qtdLinhas = 4;              //define numero de linhas da matriz do teclado
+const byte qtdColunas = 4;             //define numero de colunas da matriz do teclado
 
 char matriz_teclas[qtdLinhas][qtdColunas] = {   // definição das posicões e componentes na matriz do teclado 
   {'1', '2', '3', 'A'},
@@ -64,7 +60,6 @@ char matriz_teclas[qtdLinhas][qtdColunas] = {   // definição das posicões e c
   {'7', '8', '9', 'C'},
   {'*', '0', '#', 'D'},
 };
-
 
 byte Linhas[qtdLinhas] = {3, 4, 6, 7};          // indica quais pinos se referem as linhas
 byte Colunas[qtdColunas] = {8, 9, 10, 11};      // indica quais pinos se referem as colunas
@@ -85,15 +80,15 @@ void setup() {
   pinMode(buzer, OUTPUT);        // define buzer como saída
   digitalWrite(pinTrava, HIGH);  // define pinTrava em valor alto
   
-  Wire.begin();
-  Serial.begin(9600);
-  finger.begin(57600);
-  lcd.begin (16, 2);
-  SPI.begin();
+  Wire.begin();           //inicia biblioteca Wire.h utilizada no modulo RTC
+  Serial.begin(9600);    //inicia objeto serial
+  finger.begin(57600);  // inicia objeto finger
+  lcd.begin (16, 2);   // define as caracteristicas do display LCD sendo 16 colunas e 2 linhas
+  SPI.begin();        //inicia protocolo de comunicação SPI
 
   while (!Serial); 
   delay(100);
-  if (finger.verifyPassword()) {                       //verifica se o sensor de impressão digital doi encontado
+  if (finger.verifyPassword()) {                       //verifica se o sensor de impressão digital foi encontado
     Serial.println("Sensor biometrico encontrado!");
   } else {
     Serial.println("Sensor biometrico não encontrado! Verifique a conexão e reinicie o sistema");
@@ -108,16 +103,6 @@ void setup() {
   //SelecionaDataeHora();          //A linha pode ser retirada apos setar a data e hora
  }
 
- /*uint8_t readnumber(void) {
-     uint8_t num = 0;
-
-  while (num == 0) {
-    while (! Serial.available());
-    num = Serial.parseInt();
-  }
-  return num;
- }*/
-
 // função que retorna um valor lido no teclado matricial para exclusão de #id da memória do modulo de impressão digital
 
  uint8_t readnumber2(void) { 
@@ -129,6 +114,9 @@ void setup() {
          lcd.clear();
           lcd.setCursor(cont2 + 6, 1);
           lcd.print(digito);
+          digitalWrite(buzer, HIGH);
+          delay(50);
+          digitalWrite(buzer, LOW);
           num2 += digito;
           cont2++;
       }
@@ -138,14 +126,31 @@ void setup() {
 //------------------------------------------------------------------------------------------------------------------------
 void loop() {
   tempoinicio = millis();  //função millis conta o tempo em milisegundos desde que o arduino foi iniciado
+  lcd.backlight();         // ativa luz de fundo do display
+  if(millis() < 5000){     //exibe mensagem inicial quando a fechadura é ligada.
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("TCC HALEFY FARIA");
+    lcd.setCursor(0, 1);
+    lcd.print("UNIPAC LAFAIETE!");
+    tone(22,3490,200);
+    delay(200);
+    tone(22,3300,300);
+    delay(200);
+     tone(22,3490,200);
+    delay(200);
+    tone(22,3300,300);
+    delay(3000);
+    lcd.clear();
+  }
+  
   datahora();              // chama a função datahora()para exibição de data e hora no display
   getFingerprintIDez();    // chama a função getFingerprintIDez()para leitura de impressão digital
   lerrfid();               // chama a função lerrfid()para leitura de tags RFID
   
   char tecla_pressionada = teclado.getKey(); //armazana o caracter lido no teclado na variável tecla_pressionada
-  
-  // busca os dados de data e hora no modulo RTC e faz a conversão dos dados para decimal
-  Wire.beginTransmission(DS1307_ADDRESS);
+     
+  Wire.beginTransmission(DS1307_ADDRESS);       // busca o dado de hora no modulo RTC e faz a conversão para decimal
   Wire.write(zero);
   Wire.endTransmission();
   Wire.requestFrom(DS1307_ADDRESS, 7);
@@ -156,29 +161,31 @@ void loop() {
   int diadomes = ConverteparaDecimal(Wire.read());
   int mes = ConverteparaDecimal(Wire.read());
   int ano = ConverteparaDecimal(Wire.read());
+ 
 //------------------------------------------------------------------------------------------------------------------------
-  if (horas < 6) {
+                          // estruturas de condição para solicitar diferentes combinações de chave de acordo com o 
+  if (horas < 6) {                   // periodo do dia       
     if (rfid == true) {
        rfid = false;                
      if (fingerp==true) {
-        ss=true;  
+        ss=true;                        //madrugada
         fingerp=false;   
      }
     }
-       if((ss==true) && (tempoinicio < s2)){
-        if(fingerp==true){
+    if((ss==true) && (millis() < s2)){
+     if(fingerp==true){
          tecladonoite();
-          fingerp=false;
-          rfid = false;
-          s=0;
-          s2=0;
-          ss=false;  
-        }  
-        }
-      if(tempoinicio > s2+5000){
+         fingerp=false;
+         rfid = false;
+         s=0;
+         s2=0;
          ss=false;  
-      }
-    if ((noite==true) && (millis() < s2mad+3000)){
+      }  
+    }
+    if(tempoinicio > s2+3000){
+         ss=false;  
+    }
+    if ((noite==true) && (millis() < s2mad+2000)){
        Unlock();
        s=0;
        s2mad=0;
@@ -196,7 +203,7 @@ void loop() {
       }
     }
     if((ss==true) && (tempoinicio < s2ma)){
-        Unlock();
+        Unlock();                                      //manhã
         ss=false;
         fingerp=false;
         rfid = false;
@@ -216,7 +223,7 @@ void loop() {
     }
     if((ss==true) && (tempoinicio < s2)){
         Unlock();
-        ss=false;
+        ss=false;                                  //Tarde
         rfid = false;
         fingerp=false;
         s=0;
@@ -233,7 +240,7 @@ void loop() {
          ss=true;  
       }
     }
-    if((ss==true)&&(millis() < s2ma)){
+    if((ss==true)&&(millis() < s2ma)){                    //Noite
        tecladonoite();
        fingerp=false;
        rfid = false;
@@ -254,13 +261,13 @@ void loop() {
     }
   }
 //-----------------------------------------------------------------------------------------------------------------------  
-  if (tecla_pressionada == 'A'){
-    digitalWrite(buzer, HIGH);
+  if (tecla_pressionada == 'A'){               //estruturas de condição para chamar determinada função de acordo com 
+    digitalWrite(buzer, HIGH);                 // a letra digitada no teclado matricial.
     delay(50);
-    digitalWrite(buzer, LOW);
-    cadadm();
-  }
-  if (tecla_pressionada == 'B') {
+    digitalWrite(buzer, LOW);                 // letra A cadastra a digital mestre
+    cadadm();                                 // letra B solicita a digitação de um #ID para Exclusão
+  }                                           // letra C cadastra ou descadastra Tag RFID
+  if (tecla_pressionada == 'B') {             // letra D exclui todas as Tags
     digitalWrite(buzer, HIGH);
     delay(50);
     digitalWrite(buzer, LOW);
@@ -283,18 +290,13 @@ void loop() {
     delay(2000);
     deletecards();
   }
-  if (gravar) {
-    modoGravacaoID(0);
-    gravar = false;
-  }
 }
-
-//-----------------------------------------------------------------------------------------------------------------------
+//-----------Função para cadastro de digitais na memória do módulo sensor de impressão digital----------------------------------
 
 uint8_t modoGravacaoID(uint8_t IDgravar) {
 
   int p = -1;
- if(IDgravar<=4){
+ if(IDgravar<=15){    //limita o numero de digitais cadastradas a 15
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Aprox. Digital p");
@@ -305,7 +307,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
   delay(2000);
     while (p != FINGERPRINT_OK) {
     p = finger.getImage();
-    char digito = teclado.getKey();
+    char digito = teclado.getKey();  // se a tecla * for digitada durante o processo o sistema retorna ao inicio
       if (digito == '*') {
         lcd.clear();
         digitalWrite(buzer, HIGH);
@@ -315,22 +317,22 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
         return;
       }
     switch (p) {
-      case FINGERPRINT_OK:
+      case FINGERPRINT_OK:     // leitura concluida
           lcd.clear();
           lcd.setCursor(0, 0);
-          lcd.print(" Leit. Concluida");
+          lcd.print(" Leit. Concluida ");
           delay(2000);
           break;
       case FINGERPRINT_NOFINGER:
           delay(200);
           break;
-      case FINGERPRINT_PACKETRECIEVEERR:
+      case FINGERPRINT_PACKETRECIEVEERR:   //erro de leitura
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("      Erro");
           delay(2000);
           break;
-      case FINGERPRINT_IMAGEFAIL:
+      case FINGERPRINT_IMAGEFAIL:  // falha na imagem 
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("      Erro");
@@ -349,7 +351,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
 
     p = finger.image2Tz(1);
     switch (p) {
-      case FINGERPRINT_OK:
+      case FINGERPRINT_OK:                            //leitura convertida
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Leit. Convertida");
@@ -370,7 +372,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
           lcd.setCursor(0, 0);
           lcd.print("      Erro");
           return p;
-      case FINGERPRINT_INVALIDIMAGE:
+      case FINGERPRINT_INVALIDIMAGE: // imagem inválida
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("      Erro");
@@ -384,7 +386,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
     }
   
   lcd.setCursor(0, 1);
-  lcd.print(" Remova o Dedo!");
+  lcd.print(" Remova o Dedo!");  // solicita que o usuário remova o dedo do sensor e repita o processo
   delay(2000);
   p = 0;
   while (p != FINGERPRINT_NOFINGER) {
@@ -406,10 +408,9 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
   lcd.print(IDgravar);
   lcd.setCursor(7, 0);
   lcd.print("Coloque o");
-  p = -1;
   lcd.setCursor(0, 1);
   lcd.print("Mesmo Dedo Novam");
-
+  p = -1;
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     char digito = teclado.getKey();
@@ -451,9 +452,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
           break;
     }
   }
-  
-  // OK successo!
-
+                                             // OK successo!
   p = finger.image2Tz(2);
   switch (p) {
     case FINGERPRINT_OK:
@@ -493,8 +492,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
         delay(2000);
         return p;
   }
-
-  // OK convertido!
+                                  // OK convertido!
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(" Criando Modelo");
@@ -551,7 +549,7 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
     return p;
   }
   lcd.clear();
-}else{
+ }else{
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(" Numero Maximo ");
@@ -560,11 +558,10 @@ uint8_t modoGravacaoID(uint8_t IDgravar) {
   delay(3000);
   lcd.clear();
   return;
+ }
 }
-
-}
-//-------------------------------------------------------------------------------------
-int getFingerprintIDez() {
+//--------------------------------------------------------------------------------------------------------------------
+int getFingerprintIDez() {                          //faz a leitura da digital no sensor
   uint8_t p = finger.getImage();
   if (p != FINGERPRINT_OK)  return -1;
 
@@ -573,10 +570,8 @@ int getFingerprintIDez() {
 
   p = finger.fingerFastSearch();
   if (p != FINGERPRINT_OK)  return -1;
-
-  //Encontrou uma digital!
-  if (finger.fingerID == 0) {
-   
+                                            //Encontrou uma digital cadastrada
+  if (finger.fingerID == 0) {               // se igual a zero, chama o modo de gravação de digitais
     digitalWrite(buzer, HIGH);
     delay(50);
     digitalWrite(buzer, LOW);
@@ -584,21 +579,19 @@ int getFingerprintIDez() {
     modoGravacaoID(numID);
     return 0;
 
-  } else {
+  } else {                                 // senão, seta a variável fingerp como verdadeira
     fingerp = true;
-    s=tempoinicio;
-    s2 = s+3000;
-    s2mad = s+7000;
+    s=millis();                            // s recebe o valor de tempo em milisegundos 
+    s2 = s+3000;                           // s2 recebe o valor de s mais 2 segundos
+    s2mad = s+5000;                        // s2mad recebe o valor de s mais 4 segundos
     digitalWrite(buzer, HIGH);
     delay(50);
     digitalWrite(buzer, LOW);
     return finger.fingerID;
   }
 }
-
 //-------------------------------------------------------------------------------------------------------
-void cadadm() {
- 
+void cadadm() {   // função para digitar senha numérica para entrar em modo administrador e chamar função modoGravacaoID
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Digite a senha : ");
@@ -634,7 +627,7 @@ void cadadm() {
         lcd.print(" Sucesso! ");
         lcd.setCursor(2, 1);
         lcd.print(" Modo Admin ");
-        gravar = true;
+        modoGravacaoID(0);
         cont = 0;
         delay(2000);
         break;
@@ -663,8 +656,8 @@ void cadadm() {
 }
 
 //--------------------------------------------------------------------------------------------
-void deladm() {
-
+void deladm() {    // função para digitar senha numérica para entrar em modo administrador e solicitar ao usuário que 
+                   // digite uma numero de ID para ser excluído
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Digite a senha : ");
@@ -698,12 +691,14 @@ void deladm() {
          lcd.clear();
          lcd.setCursor(0, 0);
          lcd.print("Modo de Exclusao ");
-         delay(2000);
+         lcd.setCursor(0, 1);
+         delay(3000);
+         lcd.print("Digite o #ID e");
+         delay(3000);
          lcd.clear();
          lcd.setCursor(0, 0);
-         lcd.print("Digite o ID e");
-         lcd.setCursor(0, 1);
-         lcd.print("Tecle * Excluir");
+         lcd.print("Tecle * Excluir");        
+         delay(2000);
          cont=0;
          uint8_t temp2;
          for(int i =0; i<2; i++){
@@ -723,7 +718,15 @@ void deladm() {
           id=id2-87;
          }
          cont2=0;
-         if (id == 0) {// ID #0 não permitido, tente novamente!
+         if (id == 0) {                    // ID #0 não permitido
+         lcd.clear();
+         lcd.setCursor(0, 0);
+         lcd.print("  Exclusao nao  ");
+         lcd.setCursor(0, 1);
+         lcd.print(" Permitida #ID0 ");
+         delay(4000);
+         lcd.clear();
+         cont=0;
          return;
          }
          lcd.clear();
@@ -761,8 +764,7 @@ void deladm() {
 }
 
 //----------------------------------------------------------------------------------------------------
-void deletecards() {
-  
+void deletecards() {  // função para digitar senha numérica para entrar em modo administrador e deletar o banco de tags cadastradas
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Digite a senha : ");
@@ -797,17 +799,15 @@ void deletecards() {
         lcd.setCursor(0, 0);
         lcd.print("Excluindo Tags!");
         delay(2000);
-
-        //Escreve zero em todos os enderecos da EEPROM
+                                          //Escreve zero em todos os enderecos da EEPROM
         for (int address = 0; address <= memory.lastAddress; address++) {
           memory.write(address, 0);
         }
-        ReadMemory(); //Atualiza os valores do array
-        digitalWrite(ledGreen, LOW);
-
+        ReadMemory();                        //Atualiza os valores do array
         delay(2000);
+        cont=0;
         break;
-      }else {
+      }else {                                // senha incorreta
           digitalWrite(buzer, HIGH);
           delay(50);
           digitalWrite(buzer, LOW);
@@ -832,7 +832,7 @@ void deletecards() {
 }
 
 //----------------------------------------------------------------------------------------------
-uint8_t deleteFingerprint(uint8_t id) {
+uint8_t deleteFingerprint(uint8_t id) { // função de exclusão de ID de acordo com o numero digitado no teclado matricial
   uint8_t p = -1;
 
   p = finger.deleteModel(id);
@@ -869,27 +869,29 @@ uint8_t deleteFingerprint(uint8_t id) {
     return p;
   }
 }
-
 //------------------------------------------------------------------------------------------------------------
-void Unlock() {
-  //Abre o acesso
-  digitalWrite(ledGreen, HIGH);
-  digitalWrite(ledRed, LOW);
+void Unlock() {                              //função de Abertura da trava e emissao de sinal sonoro de abertura
+  
   digitalWrite(pinTrava, LOW);
- // digitalWrite(buzer, HIGH);
-  delay(500);
-  digitalWrite(pinTrava, HIGH);
-  digitalWrite(ledGreen, LOW);
- // digitalWrite(buzer, LOW);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+    lcd.print("Acesso Permitido");
+    tone(22,3490,200);
+    delay(200);
+    tone(22,3300,300);
+    delay(200);
+     tone(22,3490,200);
+     digitalWrite(pinTrava, HIGH);
+      delay(2000);
+    lcd.clear();
   rfid = false;
   fingerp = false;
   delay(500);
 }
-//------------------------------------------------------------------------------------------------------
-/*----- EFETUA A LEITURA DO CARTAO RFID -----*/
+//----------------------------------- EFETUA A LEITURA DO CARTAO RFID----------------------------------------------------
 String ReadCard() {
-  String UID = "";
-  //Verifica a presença de um novo cartao e efetua a leitura
+  String UID = "";                           //Verifica a presença de um novo cartao e efetua a leitura
+                                                
   if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
     //Retorna o UID para a variavel UIDcard
     for (byte i = 0; i < mfrc522.uid.size; i++) {
@@ -899,35 +901,23 @@ String ReadCard() {
   return UID;
 }
 
-//----- CADASTRA CARTÃO DE ACESSO ---------------------------------------------------------------------
+//---------------------------------------------- CADASTRA CARTÃO DE ACESSO --------------------------------------------
 void RecUser() {
   String UID = "";
   boolean deleteCard = false;
-  lcd.clear();
-  //Efetua a leitura do cartao para cadastro
-  //Aprox 5 segundos para cadastrar o cartao
-  for (int t = 0; t < 150; t++) {
-    delay(10);
-    //Acende os leds verde e vermelho
-    digitalWrite(ledGreen, HIGH);
-    digitalWrite(ledRed, HIGH);
+  lcd.clear();                                             
+  for (int t = 0; t < 150; t++) {            //Efetua a leitura do cartao para cadastro
+    delay(10);                              //Aprox 5 segundos para cadastrar o cartao
     lcd.setCursor(0, 0);
     lcd.print("Aproxime Cartao!");
     //Faz a leitura o cartao
     UID = ReadCard();
     if (UID != "") {
-      //Se leu um cartão, mantém somente o led verde acesso enquanto segue executando o procedimento
-      digitalWrite(ledRed, LOW);
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("Cartao Cadastrado");
-
-      //Verifica se o cartao ja esta cadastrado
-      for (int c = 0; c < maxCards; c++) {
-        //Se já estiver cadastrado, exclui o cartão do array e também da memória
-        if (cards[c] == UID) {
-          digitalWrite(ledRed, HIGH);
-          digitalWrite(ledGreen, LOW);
+      lcd.print("Cartao Cadastrado");      
+      for (int c = 0; c < maxCards; c++) {         //Verifica se o cartao ja esta cadastrado        
+        if (cards[c] == UID) {                   //Se já estiver cadastrado, exclui o cartão do array e também da memória
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print(" Cartao Excluido");
@@ -935,45 +925,33 @@ void RecUser() {
           deleteCard = true;
         }
       }
-      break; //finaliza o for
+      break;                         //finaliza o for
     }
   }
-
-  //Cancela o cadastro se nenhum cartao foi lido
-  if (UID == "") {
-    //Apaga os leds verde e vermelho
-    digitalWrite(ledGreen, LOW);
-    digitalWrite(ledRed, LOW);
+  if (UID == "") {                 //Cancela o cadastro se nenhum cartao foi lido
     return;
   }
 
-  if (deleteCard == false) {
-    //Se for inclusão de novo cartão, verifica se ainda existe espaco para novos cadastros
-    //Se a última posição da memória for diferente de zero, pisca o led vermelho sinalizando
-    //que não existe mais espaço para novos cartões, e finaliza o procedimento
-    if (cards[maxCards - 1].toInt()  != 0) {
-      digitalWrite(ledGreen, LOW);
-      for (int i = 0; i < 10; i++) {
-        digitalWrite(ledRed, HIGH);
-        delay(100);
-        digitalWrite(ledRed, LOW);
-        delay(100);
-      }
+  if (deleteCard == false) {     //Se for inclusão de novo cartão, verifica se ainda existe espaco para novos cadastros
+    if (cards[maxCards - 1].toInt()  != 0) {   //Se a última posição da memória for diferente de zero, exibe mensagem 
+     lcd.clear();                             //que não existe mais espaço para novos cartões, e finaliza o procedimento
+      lcd.setCursor(0, 0);
+      lcd.print("nao existe espaco");
+      delay(3000);
       return;
     }
   }
-  //Adiciona o cartão no array, somente se for inclusão de novo cartão
-  if (deleteCard == false) {
+  if (deleteCard == false) {                  //Adiciona o cartão no array, somente se for inclusão de novo cartão
     for (int c = 0; c < maxCards; c++) {
-      if (cards[c].toInt() == 0) { //Posicao livre
+      if (cards[c].toInt() == 0) {            //Posicao livre
         cards[c] = UID;
-        break; //finaliza o for
+        break;                              //finaliza o for
       }
     }
   }
-  //Grava na memória os cartões do array
-  //Cada cartão ocupa duas posições da memória
-  for (int e = 0; e <= memory.lastAddress; e++) { //Limpa os valores da memória
+                                                   
+                                    //Grava na memória os cartões do array, Cada cartão ocupa duas posições da memória
+  for (int e = 0; e <= memory.lastAddress; e++) {     //Limpa os valores da memória
     memory.write(e, 0);
   }
   int a = 0;
@@ -984,20 +962,14 @@ void RecUser() {
       a += 2;
     }
   }
-  //Retorna os valores da memória para o array, para ajustar as posições do cartão no array como está na memória
-  ReadMemory();
+  ReadMemory();//Retorna valores da memória para array, para ajustar as posições do cartão no array como está na memória
 
   if (deleteCard == false) {
-    digitalWrite(ledGreen, LOW);
     return;
-  } else {
-    //Apaga os leds verde e vermelho
-    digitalWrite(ledGreen, LOW);
-    digitalWrite(ledRed, LOW);
-  }
+  } 
 }
 
-//----- RETORNA OS DADOS DA MEMÓRIA PARA O ARRAY ------------------------------------------------------------------
+//------------------------------------- RETORNA OS DADOS DA MEMÓRIA PARA O ARRAY --------------------------------------
 void ReadMemory() {
   int a = 0;
   for (int c = 0; c < maxCards; c++) {
@@ -1007,8 +979,8 @@ void ReadMemory() {
 }
 
 //----------------------------------------------------------------------------------------------------------------
-void cadadm2() {
-  lcd.clear();
+void cadadm2() { // função para digitar senha numérica para entrar em modo administrador e chamar função RecUser 
+  lcd.clear();                                                     
   lcd.setCursor(0, 0);
   lcd.print("Digite a senha : ");
   String temp;
@@ -1071,20 +1043,20 @@ void cadadm2() {
 }
 
 //--------------------------------------------------------------------------------------------------------------
-void SelecionaDataeHora()   //Seta a data e a hora do DS1307
+void SelecionaDataeHora()                    //Seta a data e a hora do DS1307
 {
-  byte segundos = 00; //Valores de 0 a 59
-  byte minutos = 28; //Valores de 0 a 59
-  byte horas = 10; //Valores de 0 a 23
-  byte diadasemana = 1; //Valores de 0 a 6 - 0=Domingo, 1 = Segunda, etc.
-  byte diadomes = 14; //Valores de 1 a 31
-  byte mes = 11; //Valores de 1 a 12
-  byte ano = 22; //Valores de 0 a 99
+  byte segundos = 00;                        //Valores de 0 a 59
+  byte minutos = 22;                         //Valores de 0 a 59
+  byte horas = 21;                           //Valores de 0 a 23
+  byte diadasemana = 0;                      //Valores de 0 a 6 - 0=Domingo, 1 = Segunda, etc.
+  byte diadomes = 27;                        //Valores de 1 a 31
+  byte mes = 11;                             //Valores de 1 a 12
+  byte ano = 22;                             //Valores de 0 a 99
   Wire.beginTransmission(DS1307_ADDRESS);
-  Wire.write(zero); //Stop no CI para que o mesmo possa receber os dados
+  Wire.write(zero);                          //Stop no CI para que o mesmo possa receber os dados
 
-  //As linhas abaixo escrevem no CI os valores de
-  //data e hora que foram colocados nas variaveis acima
+                                            //As linhas abaixo escrevem no CI os valores de
+                                            //data e hora que foram colocados nas variaveis acima
   Wire.write(ConverteParaBCD(segundos));
   Wire.write(ConverteParaBCD(minutos));
   Wire.write(ConverteParaBCD(horas));
@@ -1098,18 +1070,16 @@ void SelecionaDataeHora()   //Seta a data e a hora do DS1307
 
 byte ConverteParaBCD(byte val)
 {
-  //Converte o número de decimal para BCD
-  return ( (val / 10 * 16) + (val % 10) );
+  return ( (val / 10 * 16) + (val % 10) );     //Converte o número de decimal para BCD
 }
 
 byte ConverteparaDecimal(byte val)
 {
-  //Converte de BCD para decimal
-  return ( (val / 16 * 10) + (val % 16) );
+  return ( (val / 16 * 10) + (val % 16) );     //Converte de BCD para decimal
 }
 
-void datahora() {
-  // Le os valores (data e hora) do modulo DS1307
+void datahora() {                             // Le os valores (data e hora) do modulo DS1307
+
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire.write(zero);
   Wire.endTransmission();
@@ -1121,28 +1091,24 @@ void datahora() {
   int diadomes = ConverteparaDecimal(Wire.read());
   int mes = ConverteparaDecimal(Wire.read());
   int ano = ConverteparaDecimal(Wire.read());
-
-  // Mostra os dados no display
-  lcd.backlight();
+                               
+  lcd.backlight();                            // Mostra os dados no display
 
   lcd.setCursor(0, 0);
-  lcd.print("    ");
-  // Acrescenta o 0 (zero) se a hora for menor do que 10
-  if (horas < 10)
+  lcd.print("    "); 
+  if (horas < 10)                             // Acrescenta o 0 (zero) se a hora for menor do que 10
     lcd.print("0");
   lcd.print(horas);
-  lcd.print(":");
-  // Acrescenta o 0 (zero) se minutos for menor do que 10
-  if (minutos < 10)
+  lcd.print(":");  
+  if (minutos < 10)                           // Acrescenta o 0 (zero) se minutos for menor do que 10
     lcd.print("0");
   lcd.print(minutos);
   lcd.print(":");
   if (segundos < 10)
     lcd.print("0");
   lcd.print(segundos);
-  lcd.setCursor(2, 1);
-  // Mostra o dia da semana
-  switch (diadasemana)
+  lcd.setCursor(2, 1);  
+  switch (diadasemana)                       // Mostra o dia da semana
   {
     case 0: lcd.print("Dom");
       break;
@@ -1158,80 +1124,70 @@ void datahora() {
       break;
     case 6: lcd.print("Sab");
   }
-  lcd.setCursor(6, 1);
-  // Acrescenta o 0 (zero) se dia do mes for menor do que 10
-  if (diadomes < 10)
+  lcd.setCursor(6, 1); 
+  if (diadomes < 10)                         // Acrescenta o 0 (zero) se dia do mes for menor do que 10
     lcd.print("0");
     lcd.print(diadomes);
     lcd.print("/");
-  // Acrescenta o 0 (zero) se mes for menor do que 10
-  if (mes < 10)
+  if (mes < 10)                              // Acrescenta o 0 (zero) se mes for menor do que 10
     lcd.print("0");
     lcd.print(mes);
     lcd.print("/");
     lcd.print(ano);
 }
 //-----------------------------------------------------------------------------------------------------------------
-void lerrfid() {
-  //Variável UID recebe o valor do cartão lido
-  String UID = ReadCard();
-
-  if (UID != "") {
-    boolean access = false;
-    //Efetua a leitura de todas as posições do array
-    for (int c = 0; c <= maxCards; c++) {
-      if (UID == cards[c]) {
-        //Se a posição do array for igual ao cartão lido, seta a varíavel como verdadeira e finaliza o for
-         cont2++;
-        digitalWrite(buzer, HIGH);
+void lerrfid() {                           // função de leitura da tag no cartão RFID                       
+  String UID = ReadCard();                 //Variável UID recebe o valor do cartão lida
+  if (UID != "") {                         // se UID diferente de vazio
+    for (int c = 0; c <= maxCards; c++) {  //Efetua a leitura de todas as posições do array
+      if (UID == cards[c]) {               //Se a posição do array for igual ao cartão lido, seta a varíavel como verdadeira e 
+                                           // finaliza o for
+         cont2++;                          // adiciona 1 no cont2
+        digitalWrite(buzer, HIGH);         //buzer emite um som indicando que foi lida uma tag
         delay(50);
         digitalWrite(buzer, LOW);
         delay(500);
-        access = true;
-        rfid = true;
-        sma=tempoinicio;
-        s2ma = sma+3000;
-        s2no = sma+7000;
+        rfid = true;                       // variavel rfid setada como verdadeira
+        sma=tempoinicio;                   // sma recebe o valor da função millis
+        s2ma = sma+3000;                   // s2ma recebe o valor de sma + 2000
+        s2no = sma+7000;                   // s2no recebe o valor de sma + 7000
         return rfid;
-      }
-    }
-    //Variável verdadeira, efetua o acesso. Caso contrário, pisca o led vermelho
-    if (access) {
-    } else {
-      for (int i = 0; i < 3; i++) {
-        digitalWrite(ledRed, HIGH);
+      }else{                               // se nao for identificada a tag na memória emite som duplo informando 
+        for (int i = 0; i < 3; i++) {      // cartão não cadastrado
         digitalWrite(buzer, HIGH);
         delay(50);
-        digitalWrite(ledRed, LOW);
         digitalWrite(buzer, LOW);
         delay(50);
-      }
+        }
       delay(500);
+      }
+      break;
     }
   }
 }
-void tecladonoite(){
+
+void tecladonoite(){                  // função para autenticar o usuário com senha numérica
        
-   String temp;
-   while (true){
-    char digito = teclado.getKey();
-    lcd.setCursor(2, 4);
-    datahora();
-    if (digito){
-       digitalWrite(buzer, HIGH);
+   String temp;                       // variável temp do tipo String
+   while (true){                      // enquanto verdadeiro
+    char digito = teclado.getKey();   // variável digito do tipo Char recebe o caracter digitado no teclado 
+    lcd.setCursor(2, 4);              // posiciona o cursor do display na lina 2 coluna 4
+    datahora();                       // chama a função de exibição de data e hora no display
+    if (digito){                      // se digitado algo no teclado
+       digitalWrite(buzer, HIGH);     // buzer acionado rapidamente indicando tecla pressionada
        delay(50);
-       digitalWrite(buzer, LOW);
-       temp += digito;
-       cont++;
+       digitalWrite(buzer, LOW);      // desliga buzzer
+       temp += digito;                // adiciona o digito na variavel temp
+       cont++;                        // adiciona 1 no contador
     }
-    if (temp.length() >= 4){
-      if (temp == senha){
+    if (temp.length() >= 4){          // se tiver 4 caracteres na variável temp faz a comparação com a variável senha
+      if (temp == senha2){
         cont = 0;
-        noite=true;
+        noite=true;                   // se for igual seta a variável noite como verdadeira,
         delay(1000);
         break;
       }
-      else {
+      else {                        // se não for igual exibe senha incorreta no display e emite som intermitente no buzer
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print(" Senha Incorreta ");
